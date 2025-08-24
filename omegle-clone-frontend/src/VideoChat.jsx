@@ -13,24 +13,23 @@ export default function VideoChat({ userName, onExit }) {
   const localStreamRef = useRef(null);
   const [status, setStatus] = useState("Connecting…");
 
-  // ✅ Define WebSocket URL correctly
+  // ✅ WebSocket URL matches backend
   const wsUrl =
     import.meta.env.MODE === "development"
-      ? "ws://localhost:8000/chat/ws"
-      : "wss://sayonara-backend.onrender.com/chat/ws";
+      ? `ws://localhost:8000/${userName}`
+      : `wss://sayonara-backend.onrender.com/${userName}`;
 
   useEffect(() => {
     let mounted = true;
 
     const start = async () => {
       try {
-        // Local media
+        // Local camera/mic
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return;
         localStreamRef.current = stream;
         if (myVideo.current) myVideo.current.srcObject = stream;
 
-        // ✅ Use wsUrl here
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
 
@@ -42,12 +41,8 @@ export default function VideoChat({ userName, onExit }) {
           console.log("📩 WS message:", msg);
 
           switch (type) {
-            case "system":
-              setStatus(data?.message || "System update");
-              break;
-
-            case "chat":
-              console.log("💬 Chat:", data.text);
+            case "partnerFound":
+              setStatus(`Connected with ${from_user || "partner"}`);
               break;
 
             case "offer":
@@ -70,12 +65,13 @@ export default function VideoChat({ userName, onExit }) {
               }
               break;
 
-            case "partnerFound":
-              setStatus(`Connected with ${from_user || "partner"}`);
+            case "waiting":
+              setStatus("Waiting for partner…");
               break;
 
-            case "partnerLeft":
-              setStatus("Partner left. Waiting for next…");
+            case "partnerSkipped":
+            case "partnerDisconnected":
+              setStatus("Partner left. Searching next…");
               resetRemote();
               break;
 
@@ -112,22 +108,18 @@ export default function VideoChat({ userName, onExit }) {
     const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE });
     pcRef.current = pc;
 
-    // Add local tracks
     localStreamRef.current?.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current));
 
-    // Remote track
     pc.ontrack = (e) => {
       if (partnerVideo.current) {
         partnerVideo.current.srcObject = e.streams[0];
       }
     };
 
-    // ICE
     pc.onicecandidate = (e) => {
       if (e.candidate) send({ type: "ice-candidate", data: e.candidate });
     };
 
-    // Connection state
     pc.onconnectionstatechange = () => setStatus(pc.connectionState);
 
     return pc;

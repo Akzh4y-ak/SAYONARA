@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app import models, database, auth
-# from app import chat   # ⛔ disabled for now
+from app.video_chat import router as video_router
 from app.database import engine
 
 # Create database tables
@@ -10,10 +10,10 @@ models.Base.metadata.create_all(bind=engine)
 # Initialize FastAPI app
 app = FastAPI(title="Sayonara Backend 🚀")
 
-# Allow frontend to connect (CORS)
+# CORS settings
 origins = [
-    "http://localhost:5173",  # vite local dev
-    "https://sayonara-frontend.onrender.com",  # deployed frontend
+    "http://localhost:5173",
+    "https://sayonara-frontend.onrender.com",
 ]
 
 app.add_middleware(
@@ -24,11 +24,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include authentication routes
+# Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
-
-# ⛔ Temporarily disabled
-# app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(video_router, prefix="", tags=["video-chat"])  # ✅ no prefix for WebSocket
 
 # Root endpoint
 @app.get("/")
