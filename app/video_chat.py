@@ -31,7 +31,7 @@ async def pair_users():
         await send_message(user1, {"type": "partnerFound", "partner": user2})
         await send_message(user2, {"type": "partnerFound", "partner": user1})
 
-@router.websocket("/ws/{user_name}")
+@router.websocket("/ws-video/{user_name}")
 async def websocket_endpoint(websocket: WebSocket, user_name: str):
     # Ensure unique usernames (for guests)
     if user_name in active_users:
@@ -55,15 +55,8 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
             partner_name = pairs.get(user_name)
 
             if partner_name and partner_name in active_users:
-                if msg_type == "chat":
-                    await send_message(partner_name, {
-                        "type": "chat",
-                        "from_user": user_name,
-                        "content": data.get("content")
-                    })
-
-                elif msg_type in {"offer", "answer", "ice-candidate"}:
-                    # Forward WebRTC signaling
+                # Handle WebRTC signaling
+                if msg_type in {"offer", "answer", "ice-candidate"}:
                     await send_message(partner_name, {
                         "type": msg_type,
                         "from_user": user_name,

@@ -38,7 +38,7 @@ export default function VideoChat({ userName, onExit }) {
 
         ws.onmessage = async (event) => {
           const msg = JSON.parse(event.data);
-          const { event: type, data } = msg || {};
+          const { type, data, from_user } = msg || {};
           console.log("📩 WS message:", msg);
 
           switch (type) {
@@ -68,6 +68,15 @@ export default function VideoChat({ userName, onExit }) {
               } catch (e) {
                 console.warn("ICE add failed:", e);
               }
+              break;
+
+            case "partnerFound":
+              setStatus(`Connected with ${from_user || "partner"}`);
+              break;
+
+            case "partnerLeft":
+              setStatus("Partner left. Waiting for next…");
+              resetRemote();
               break;
 
             default:
