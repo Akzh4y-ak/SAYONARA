@@ -13,11 +13,10 @@ export default function VideoChat({ userName, onExit }) {
   const localStreamRef = useRef(null);
   const [status, setStatus] = useState("Connecting…");
 
-  // WebSocket URL (adjust if backend runs elsewhere)
-  const wsUrl = (() => {
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${window.location.hostname}:8000/chat/ws`;
-  })();
+  // WebSocket URL for deployed backend
+  const wsUrl = "wss://sayonara-8s55.onrender.com/chat/ws";
+  // Uncomment below if you want it to work locally too
+  // const wsUrl = process.env.NODE_ENV === "development" ? "ws://localhost:8000/chat/ws" : "wss://sayonara-8s55.onrender.com/chat/ws";
 
   useEffect(() => {
     let mounted = true;
@@ -91,7 +90,6 @@ export default function VideoChat({ userName, onExit }) {
       pcRef.current = null;
       try { socketRef.current?.close(); } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsUrl]);
 
   const send = (obj) => {
