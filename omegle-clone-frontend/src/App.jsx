@@ -7,12 +7,14 @@ function App() {
   const [nickname, setNickname] = useState("");
 
   const handleStart = (name) => {
-    setNickname(name || "Guest_" + Math.floor(1000 + Math.random() * 9000));
+    // ensure non-empty nickname
+    const finalName = name?.trim() || "Guest_" + Math.floor(1000 + Math.random() * 9000);
+    setNickname(finalName);
     setStarted(true); // Switch to VideoChat
   };
 
   const handleExit = () => {
-    // Allow returning to MainPage after stopping chat
+    // Reset state when exiting chat
     setNickname("");
     setStarted(false);
   };

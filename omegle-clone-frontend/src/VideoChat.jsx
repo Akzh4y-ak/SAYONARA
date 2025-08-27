@@ -11,20 +11,19 @@ export default function VideoChat({ userName, onExit }) {
   const pcRef = useRef(null);
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
+  const iceCandidateQueue = useRef([]);
   const [status, setStatus] = useState("Connecting…");
 
-  // ✅ WebSocket URL matches backend
   const wsUrl =
     import.meta.env.MODE === "development"
-      ? `ws://localhost:8000/${userName}`
-      : `wss://sayonara-backend.onrender.com/${userName}`;
+      ? `ws://localhost:8000/ws-video/${userName}`
+      : `wss://sayonara-backend.onrender.com/ws-video/${userName}`;
 
   useEffect(() => {
     let mounted = true;
 
     const start = async () => {
       try {
-        // Local camera/mic
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return;
         localStreamRef.current = stream;
@@ -37,17 +36,25 @@ export default function VideoChat({ userName, onExit }) {
 
         ws.onmessage = async (event) => {
           const msg = JSON.parse(event.data);
-          const { type, data, from_user } = msg || {};
+          const { type, data, from_user, is_initiator } = msg || {};
           console.log("📩 WS message:", msg);
 
           switch (type) {
             case "partnerFound":
               setStatus(`Connected with ${from_user || "partner"}`);
+              ensurePC();
+              // FIX: Use the flag from the server to determine who creates the offer.
+              if (is_initiator) {
+                const offer = await pcRef.current.createOffer();
+                await pcRef.current.setLocalDescription(offer);
+                send({ type: "offer", data: offer });
+              }
               break;
 
             case "offer":
               ensurePC();
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(data));
+              await processIceQueue();
               const answer = await pcRef.current.createAnswer();
               await pcRef.current.setLocalDescription(answer);
               send({ type: "answer", data: answer });
@@ -55,27 +62,25 @@ export default function VideoChat({ userName, onExit }) {
 
             case "answer":
               await pcRef.current?.setRemoteDescription(new RTCSessionDescription(data));
+              await processIceQueue();
               break;
 
             case "ice-candidate":
-              try {
-                await pcRef.current?.addIceCandidate(data);
-              } catch (e) {
-                console.warn("ICE add failed:", e);
+              if (pcRef.current?.remoteDescription) {
+                await pcRef.current.addIceCandidate(data);
+              } else {
+                iceCandidateQueue.current.push(data);
               }
               break;
-
-            case "waiting":
-              setStatus("Waiting for partner…");
-              break;
-
+            
             case "partnerSkipped":
             case "partnerDisconnected":
-              setStatus("Partner left. Searching next…");
+              setStatus("Partner left. Searching for a new one…");
               resetRemote();
               break;
 
             default:
+              console.warn("Unknown message type:", type);
               break;
           }
         };
@@ -83,7 +88,7 @@ export default function VideoChat({ userName, onExit }) {
         ws.onclose = () => setStatus("Disconnected");
       } catch (e) {
         console.error("getUserMedia error:", e);
-        setStatus("Camera/Mic permission needed.");
+        setStatus("Camera/Mic permission is required.");
       }
     };
 
@@ -92,18 +97,32 @@ export default function VideoChat({ userName, onExit }) {
     return () => {
       mounted = false;
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
-      try { pcRef.current?.close(); } catch {}
-      pcRef.current = null;
-      try { socketRef.current?.close(); } catch {}
+      pcRef.current?.close();
+      socketRef.current?.close();
     };
   }, [wsUrl]);
 
+  const processIceQueue = async () => {
+    while (iceCandidateQueue.current.length > 0) {
+      const candidate = iceCandidateQueue.current.shift();
+      try {
+        await pcRef.current.addIceCandidate(candidate);
+      } catch (e) {
+        console.warn("ICE add failed:", e);
+      }
+    }
+  };
+
   const send = (obj) => {
-    try { socketRef.current?.send(JSON.stringify(obj)); } catch {}
+    try {
+      socketRef.current?.send(JSON.stringify(obj));
+    } catch (e) {
+      console.error("Error sending message:", e);
+    }
   };
 
   const ensurePC = () => {
-    if (pcRef.current) return pcRef.current;
+    if (pcRef.current) return;
 
     const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE });
     pcRef.current = pc;
@@ -111,24 +130,27 @@ export default function VideoChat({ userName, onExit }) {
     localStreamRef.current?.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current));
 
     pc.ontrack = (e) => {
-      if (partnerVideo.current) {
-        partnerVideo.current.srcObject = e.streams[0];
-      }
+      if (partnerVideo.current) partnerVideo.current.srcObject = e.streams[0];
     };
 
     pc.onicecandidate = (e) => {
       if (e.candidate) send({ type: "ice-candidate", data: e.candidate });
     };
 
-    pc.onconnectionstatechange = () => setStatus(pc.connectionState);
-
-    return pc;
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      setStatus(state);
+      if (state === "failed" || state === "disconnected" || state === "closed") {
+          resetRemote();
+      }
+    };
   };
-
+  
   const resetRemote = () => {
     if (partnerVideo.current) partnerVideo.current.srcObject = null;
-    try { pcRef.current?.close(); } catch {}
+    pcRef.current?.close();
     pcRef.current = null;
+    iceCandidateQueue.current = [];
   };
 
   const handleNext = () => {
@@ -136,19 +158,18 @@ export default function VideoChat({ userName, onExit }) {
     send({ type: "next" });
     setStatus("Searching for next…");
   };
-
+  
   const handleStop = () => {
     send({ type: "disconnect" });
-    try { socketRef.current?.close(); } catch {}
     resetRemote();
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    if (onExit) onExit();
+    onExit?.();
   };
 
   return (
     <div className="min-h-screen w-full bg-black text-white flex flex-col items-center justify-center gap-4 p-4">
       <div className="flex items-center gap-3">
-        <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-xs">{status}</span>
+        <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-xs capitalize">{status}</span>
         <span className="text-sm opacity-80">You: <b>{userName}</b></span>
       </div>
 

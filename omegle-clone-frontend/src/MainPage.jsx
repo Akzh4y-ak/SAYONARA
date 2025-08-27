@@ -2,21 +2,31 @@ import { useState } from "react";
 
 function MainPage({ onStart }) {
   const [nickname, setNickname] = useState("");
-  const [error, setError] = useState("");
 
-  const generateGuestName = () => "Stargazer_" + Math.floor(1000 + Math.random() * 9000);
+  // 🔹 Random guest names (rotating adjectives for variety)
+  const adjectives = ["Stargazer", "Dreamer", "Wanderer", "Cosmic", "Nomad"];
+  const generateGuestName = () => {
+    const word = adjectives[Math.floor(Math.random() * adjectives.length)];
+    return word + "_" + Math.floor(1000 + Math.random() * 9000);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    let finalName = nickname.trim() || generateGuestName();
-    setError("");
+    let finalName = nickname.trim();
+
+    // if empty, fallback to random guest name
+    if (!finalName) {
+      finalName = generateGuestName();
+    }
+
+    // 🚀 pass nickname back to parent (connect to backend here)
     onStart(finalName);
   };
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen text-white overflow-hidden">
 
-      {/* Background video (put bg-video.mp4 in /public) */}
+      {/* Background video */}
       <video
         autoPlay
         loop
@@ -27,7 +37,7 @@ function MainPage({ onStart }) {
         <source src="/bg-video.mp4" type="video/mp4" />
       </video>
 
-      {/* Vignette + readability overlay */}
+      {/* Overlay */}
       <div className="absolute inset-0 bg-black/50"></div>
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70" />
@@ -44,7 +54,7 @@ function MainPage({ onStart }) {
         Meet strangers under the same sky.
       </p>
 
-      {/* Form card (subtle glass) */}
+      {/* Form card */}
       <form
         onSubmit={handleSubmit}
         className="relative w-full max-w-md rounded-2xl border border-white/15 bg-white/8 backdrop-blur-md p-5 md:p-6 shadow-[0_10px_40px_rgba(0,0,0,0.35)]"
@@ -60,10 +70,8 @@ function MainPage({ onStart }) {
           className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/60 outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition"
         />
 
-        {error && <p className="mt-2 text-red-300 text-sm">{error}</p>}
-
         <div className="mt-5 grid grid-cols-2 gap-3">
-          {/* Primary button: neutral white to match any sky */}
+          {/* Start button */}
           <button
             type="submit"
             className="px-4 py-3 rounded-xl font-semibold bg-white/90 text-gray-900 hover:bg-white transition shadow"
@@ -71,7 +79,7 @@ function MainPage({ onStart }) {
             Start
           </button>
 
-          {/* Secondary: subtle glass with white border */}
+          {/* Random nickname button */}
           <button
             type="button"
             onClick={() => setNickname(generateGuestName())}
@@ -82,7 +90,7 @@ function MainPage({ onStart }) {
         </div>
       </form>
 
-      {/* Footer note */}
+      {/* Footer */}
       <div className="relative mt-8 text-xs text-slate-200/70">
         No login. Just vibe.
       </div>
