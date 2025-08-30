@@ -17,7 +17,7 @@ app = FastAPI(title="Sayonara Backend 🚀")
 origins = [
     "http://localhost:5173",
     "https://sayonara-frontend.onrender.com",
-    "https://sayonara-frontend1.onrender.com"  
+    "https://sayonara-frontend1.onrender.com"
 ]
 
 app.add_middleware(
@@ -26,6 +26,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origins="*"  # This is a temporary fix
 )
 
 # Include routers
