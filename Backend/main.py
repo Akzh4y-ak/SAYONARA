@@ -17,6 +17,7 @@ app = FastAPI(title="Sayonara Backend 🚀")
 origins = [
     "http://localhost:5173",
     "https://sayonara-frontend.onrender.com",
+    "https://sayonara-frontend1.onrender.com"  
 ]
 
 app.add_middleware(
