@@ -17,7 +17,7 @@ export default function VideoChat({ userName, onExit }) {
   const wsUrl =
     import.meta.env.MODE === "development"
       ? `ws://localhost:8000/ws-video/${userName}`
-      : `wss://sayonara-3.onrender.com/ws-video/${userName}`; // This line was updated
+      : `wss://sayonara-3.onrender.com/ws-video/${userName}`; // This URL is now correctly pointing to your backend
 
   useEffect(() => {
     let mounted = true;
