@@ -17,16 +17,16 @@ app = FastAPI(title="Sayonara Backend 🚀")
 origins = [
     "http://localhost:5173",
     "https://sayonara-frontend.onrender.com",
-    "https://sayonara-frontend1.onrender.com"
+    "https://sayonara-frontend1.onrender.com",
+    "*"  # <-- Add the wildcard here
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,  # <-- This is the only place it should be defined
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origins="*"  # This is a temporary fix
 )
 
 # Include routers
