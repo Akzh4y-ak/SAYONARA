@@ -39,7 +39,7 @@ async def pair_users():
         await send_message(u1, {"type": "partnerFound", "from_user": u2, "is_initiator": True})
         await send_message(u2, {"type": "partnerFound", "from_user": u1, "is_initiator": False})
 
-@router.websocket("/ws-video/{user_name}")
+@router.websocket("/{user_name}")
 async def websocket_endpoint(websocket: WebSocket, user_name: str):
     await websocket.accept()
 
